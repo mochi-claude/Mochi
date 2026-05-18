@@ -386,6 +386,10 @@
     window.initMochi = async function (onReady) {
         _injectStyles();
 
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/Mochi/sw.js', { scope: '/Mochi/' }).catch(() => {});
+        }
+
         const { data: { session } } = await _sb.auth.getSession();
         if (session) {
             _user = session.user;
