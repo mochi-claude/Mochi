@@ -672,7 +672,11 @@ function buildForYouQueries() {
 
     // Top authors
     const authorCounts = {};
-    source.forEach(b => { authorCounts[b.author] = (authorCounts[b.author] || 0) + 1; });
+    source.forEach(b => {
+        if (b.author && b.author !== 'Unknown') {
+            authorCounts[b.author] = (authorCounts[b.author] || 0) + 1;
+        }
+    });
     const topAuthors = Object.entries(authorCounts).sort((a,b) => b[1]-a[1]).slice(0,2).map(e => e[0]);
 
     const queries = [];
@@ -757,11 +761,14 @@ async function fetchForYou(page = 1) {
     const queries = buildForYouQueries();
     const shelfTitles = new Set(window.mochiGetBooks().map(b => b.title.toLowerCase().trim()));
 
-    // Round-robin across queries for variety
     const query = queries[(page - 1) % queries.length];
-    const results = await fetchSearch(query, Math.ceil(page / queries.length));
+    let results = await fetchSearch(query, Math.ceil(page / queries.length));
 
-    // Filter out books already on shelf
+    // If personalized query returned nothing, fall back to generic
+    if (!results.length && page === 1) {
+        results = await fetchSearch('romance fiction bestseller', 1);
+    }
+
     return results.filter(b => !shelfTitles.has(b.title.toLowerCase().trim()));
 }
 
