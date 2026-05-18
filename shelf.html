@@ -90,6 +90,17 @@
 
         .hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
 
+        .notif-btn {
+            background: var(--pink-soft); border: 1.5px solid var(--border);
+            border-radius: 12px; padding: 8px 14px;
+            font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
+            cursor: pointer; font-family: 'Nunito', sans-serif;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+        }
+        .notif-btn:hover { background: var(--pink-light); color: var(--pink-deep); }
+        .notif-btn.on { background: var(--pink-light); color: var(--pink-deep); border-color: var(--pink); }
+        .notif-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         /* ── Stats ── */
         .stats { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
         .stat-pill {
@@ -645,7 +656,10 @@
     </div>
     <div class="hero-right">
         <div class="stats" id="stats"></div>
-        <button class="btn-add-book" id="openAddModal">＋ Add a book</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="notif-btn" id="notifBtn">🔔 Notify me</button>
+            <button class="btn-add-book" id="openAddModal">＋ Add a book</button>
+        </div>
     </div>
 </div>
 
@@ -1254,6 +1268,28 @@ document.getElementById('submitAddBook').addEventListener('click', submitAddBook
 // ──────────────────────────────────────────
 // Init
 // ──────────────────────────────────────────
+async function setupNotifBtn() {
+    const btn = document.getElementById('notifBtn');
+    if (!btn) return;
+    const status = await window.mochiGetNotificationStatus();
+    if (status === 'unsupported') { btn.style.display = 'none'; return; }
+    if (status === 'on') { btn.textContent = '🔔 Notifications on'; btn.classList.add('on'); }
+    if (status === 'denied') { btn.textContent = '🔕 Blocked'; btn.disabled = true; }
+    btn.addEventListener('click', async () => {
+        const current = await window.mochiGetNotificationStatus();
+        if (current === 'on') {
+            await window.mochiDisableNotifications();
+            btn.textContent = '🔔 Notify me';
+            btn.classList.remove('on');
+        } else {
+            btn.textContent = 'Enabling...';
+            const ok = await window.mochiEnableNotifications().catch(() => false);
+            if (ok) { btn.textContent = '🔔 Notifications on'; btn.classList.add('on'); }
+            else { btn.textContent = '🔕 Blocked'; btn.disabled = true; }
+        }
+    });
+}
+
 window.initMochi(() => {
     const user = window.mochiGetUser();
     const nickname = user?.user_metadata?.nickname;
@@ -1261,6 +1297,7 @@ window.initMochi(() => {
     document.getElementById('shelfHeroName').textContent = displayName + "'s";
     renderShelf();
     renderGoal();
+    setupNotifBtn();
 });
 </script>
 

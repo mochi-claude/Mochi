@@ -23,3 +23,20 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
+
+self.addEventListener('push', event => {
+  const data = event.data ? event.data.json() : {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Mochi 🐰', {
+      body: data.body || 'Your shelf is waiting for you!',
+      icon: '/Mochi/icon.svg',
+      badge: '/Mochi/icon.svg',
+      data: { url: data.url || '/Mochi/shelf.html' }
+    })
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data.url));
+});

@@ -340,6 +340,48 @@
         nav.appendChild(link);
     }
 
+    // ── Notifications ──────────────────────────────
+    const _VAPID_PUBLIC_KEY = 'BGQOH5JoGLOfqsBle0HhYYZAOfzfu4vFoOEN1OgYedb48wJgogUO_SrU7yZabr_Bz45KGgrvZrNnbhWz_4ciwtE';
+
+    function _urlB64ToUint8(base64) {
+        const padding = '='.repeat((4 - base64.length % 4) % 4);
+        const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(b64);
+        return Uint8Array.from(raw, c => c.charCodeAt(0));
+    }
+
+    window.mochiGetNotificationStatus = async () => {
+        if (!('Notification' in window) || !('PushManager' in window)) return 'unsupported';
+        if (Notification.permission === 'denied') return 'denied';
+        if (Notification.permission !== 'granted') return 'off';
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        return sub ? 'on' : 'off';
+    };
+
+    window.mochiEnableNotifications = async () => {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return false;
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: _urlB64ToUint8(_VAPID_PUBLIC_KEY)
+        });
+        const { error } = await _sb.from('push_subscriptions').upsert({
+            user_id: _user.id,
+            subscription: sub.toJSON()
+        }, { onConflict: 'user_id' });
+        if (error) throw error;
+        return true;
+    };
+
+    window.mochiDisableNotifications = async () => {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+        await _sb.from('push_subscriptions').delete().eq('user_id', _user.id);
+    };
+
     // ── Main entry point ────────────────────────────
     window.initMochi = async function (onReady) {
         _injectStyles();
